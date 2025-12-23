@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="LocalMarket.Api/LocalMarket.Api.csproj" />
+  <Project Path="LocalMarket.Tests/LocalMarket.Tests.csproj" />
+</Solution>
