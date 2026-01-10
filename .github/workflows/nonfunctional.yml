@@ -1,0 +1,35 @@
+name: Non-Functional - Security & Quality Checks
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  DOTNET_VERSION: "8.0.x"
+  PROJECT_PATH: "LocalMarket.Api/LocalMarket.Api.csproj"
+
+jobs:
+  quality-security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore ${{ env.PROJECT_PATH }}
+
+      - name: Build with warnings as errors
+        run: dotnet build ${{ env.PROJECT_PATH }} -c Release --no-restore -warnaserror
+
+      - name: Report vulnerable packages (NuGet Advisory)
+        run: dotnet list ${{ env.PROJECT_PATH }} package --vulnerable
+
+      - name: Report deprecated packages
+        run: dotnet list ${{ env.PROJECT_PATH }} package --deprecated

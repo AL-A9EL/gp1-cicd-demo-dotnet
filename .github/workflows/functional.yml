@@ -1,0 +1,65 @@
+name: Functional - Build, Test & Push Docker Image (.NET)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  DOTNET_VERSION: "8.0.x"
+  TEST_PROJECT_PATH: "LocalMarket.Tests/LocalMarket.Tests.csproj"
+  IMAGE_NAME: "gp1-cicd-demo-dotnet"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore ${{ env.TEST_PROJECT_PATH }}
+
+      - name: Build (Release)
+        run: dotnet build ${{ env.TEST_PROJECT_PATH }} -c Release --no-restore
+
+      - name: Run unit tests
+        run: dotnet test ${{ env.TEST_PROJECT_PATH }} -c Release --no-build --verbosity normal
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # NOTE:
+      # We only log in + push on "push" events (not PRs), so PRs don't need DockerHub secrets.
+      - name: Log in to Docker Hub
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push Docker image (push event)
+        if: github.event_name == 'push'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Build Docker image (PR validation)
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: pr-build:${{ github.sha }}
